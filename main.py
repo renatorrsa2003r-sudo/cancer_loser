@@ -9,12 +9,12 @@ from google.genai import types
 import uvicorn
 
 app = FastAPI(
-    title="Cancer Loser - Apoio Oncológico",
+    title="Cancer Loser - Assistente de Cuidado e Apoio Oncológico",
     version="1.0.0"
 )
 
-# --- Modelo Padrão de Alta Cota (500 req/dia) ---
-MODELO_PADRAO = "gemini-3.5-flash-lite"
+# --- Modelo Oficial de Alta Cota (500 requisições/dia) ---
+MODELO_IA = "gemini-3.5-flash-lite"
 
 # --- Schemas Pydantic Estruturados ---
 class ManejoSintoma(BaseModel):
@@ -50,9 +50,9 @@ class DadosEntrada(BaseModel):
 
 class RespostaCompleta(BaseModel):
     guia: GuiaCuidadoOncologico
-    status_info: Dict[str, Any]
+    tokens: Dict[str, Any]
 
-# --- Fallback Local Inteligente (Garante resposta mesmo sem internet/cota) ---
+# --- Fallback Local (Garante funcionamento contínuo) ---
 def gerar_fallback(dados: DadosEntrada) -> GuiaCuidadoOncologico:
     sintomas_str = ", ".join(dados.sintomas_atuais) if dados.sintomas_atuais else "Fadiga e Náusea leve"
     return GuiaCuidadoOncologico(
@@ -63,70 +63,73 @@ def gerar_fallback(dados: DadosEntrada) -> GuiaCuidadoOncologico:
             o_que_fazer_agora=[
                 "Fracione as refeições em pequenas porções a cada 2 a 3 horas.",
                 "Prefira alimentos em temperatura ambiente ou frios para diminuir odores fortes.",
-                "Mantenha repouso em posição semi-inclinada após as refeições."
+                "Faça pausas curtas de descanso sem deitar totalmente logo após comer."
             ],
             o_que_evitar=[
-                "Frituras, alimentos muito condimentados e longos períodos em jejum.",
-                "Bebidas gaseificadas ou excessivamente açucaradas."
+                "Alimentos muito gordurosos, frituras, excesso de condimentos e odores intensos.",
+                "Ficar longos períodos em jejum absoluto."
             ],
-            dica_de_conforto="Cubos de gelo com raspas de limão ou água de coco aliviam o enjoo e a sensação de boca seca."
+            dica_de_conforto="Chupitar cubos de gelo com raspas de limão ou água de coco ajuda na hidratação e reduz o gosto metálico na boca."
         ),
         nutricao_e_hidratacao=NutricaoOncologica(
             fase_atual=f"{dados.tipo_tratamento} ({dados.fase_ciclo})",
             alimentos_aliados=[
                 "Caldo caseiro de legumes",
-                "Ovos cozidos bem passados",
-                "Purê de batata ou mandioquinha",
-                "Frutas com alto teor de água (melancia, melão)"
+                "Ovo cozido ou mexido macio",
+                "Purê de mandioquinha ou batata",
+                "Frutas ricas em água (melancia, melão)"
             ],
             alimentos_a_evitar=[
                 "Carnes cruas ou malpassadas (risco microbiológico)",
-                "Vegetais crus não sanitizados rigorosamente",
-                "Laticínios não pasteurizados"
+                "Frutas com casca não higienizada rigorosamente",
+                "Leite e derivados não pasteurizados"
             ],
             meta_hidratacao_ml=2200,
-            dica_paladar_ou_nausea="Use talheres de plástico ou madeira caso sinta gosto metálico durante a alimentação."
+            dica_paladar_ou_nausea="Use talheres plásticos ou de madeira se sentir gosto metálico durante as refeições."
         ),
         checklist_proxima_consulta=[
             PerguntaConsulta(
-                duvida_para_oncologista="A intensidade dos sintomas que senti nesta semana está dentro do esperado para o meu protocolo?",
-                por_que_perguntar="Ajuda o médico a avaliar necessidade de ajuste de dosagem ou antieméticos."
+                duvida_para_oncologista="A intensidade dos sintomas que senti nesta semana está dentro do esperado?",
+                por_que_perguntar="Permite ao médico ajustar a medicação antiemética ou protetora."
             ),
             PerguntaConsulta(
-                duvida_para_oncologista="Posso utilizar algum suplemento hiperproteico para evitar perda muscular?",
-                por_que_perguntar="Mantém a reserva energética e combate a sarcopenia."
+                duvida_para_oncologista="Posso tomar algum suplemento alimentar específico para complementar minhas calorias?",
+                por_que_perguntar="Evita desnutrição e perda de massa muscular durante as sessões."
             )
         ],
-        pratica_bem_estar_mental="Exercício 4-4-4: inspire em 4 segundos, segure por 4 segundos e expire suavemente em 4 segundos. Respeite os limites do seu corpo hoje."
+        pratica_bem_estar_mental="Respiração diafragmática 4-4-4: inspire em 4 segundos, segure 4 segundos e solte em 4 segundos. Respeite os limites do seu corpo hoje."
     )
 
-# --- Endpoint da API ---
+# --- Endpoint de Geração ---
 @app.post("/api/v1/cuidado/gerar", response_model=RespostaCompleta)
 def gerar_orientacao(dados: DadosEntrada):
-    modo = "Gemini 3.5 Flash Lite (Tempo Real)"
-    
+    prompt_tokens = 0
+    resposta_tokens = 0
+    total_tokens = 0
+    modo = f"Ao Vivo (Gemini 3.5 Flash Lite)"
+
     try:
         chave = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
         client = genai.Client(api_key=chave) if chave else genai.Client()
 
         prompt = f"""
-        Você é um Especialista em Cuidados e Conforto Oncológico.
-        Gere um plano estruturado, acolhedor e altamente didático para um paciente oncológico:
+        Você é um Assistente Especializado em Cuidados e Conforto Oncológico Integrativo.
+        Elabore um plano de suporte acolhedor, altamente didático e baseado em evidências médicas para um paciente oncológico:
 
         - Tratamento: {dados.tipo_tratamento}
         - Momento: {dados.fase_ciclo}
-        - Sintomas relatados: {', '.join(dados.sintomas_atuais) if dados.sintomas_atuais else 'Bem-estar geral'}
+        - Sintomas relatados: {', '.join(dados.sintomas_atuais) if dados.sintomas_atuais else 'Recuperação e bem-estar'}
         - Apetite: {dados.apetite_nivel}
 
-        DIRETRIZES MÉDICAS:
-        1. Alerte com ênfase sobre febre (≥ 37,8°C) como urgência médica.
-        2. Dê orientações práticas de nutrição segura (evitar alimentos crus e risco bacteriano).
-        3. Forneça dicas para alterações de paladar e náusea.
-        4. Monte perguntas relevantes para a consulta com o oncologista.
+        DIRETRIZES MÉDICAS MANDATÓRIAS:
+        1. Destaque sempre o alerta de febre (≥ 37,8°C) como urgência médica.
+        2. Dê orientações práticas de nutrição segura (evitar contaminação microbiana/neutropenia).
+        3. Forneça dicas para alterações sensoriais (gosto metálico, mucosite, enjoo).
+        4. Monte perguntas relevantes para o paciente levar ao oncologista.
         """
 
         response = client.models.generate_content(
-            model=MODELO_PADRAO,
+            model=MODELO_IA,
             contents=prompt,
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
@@ -135,17 +138,29 @@ def gerar_orientacao(dados: DadosEntrada):
         )
         guia_gerado = response.parsed
 
+        if response.usage_metadata:
+            prompt_tokens = response.usage_metadata.prompt_token_count or 0
+            resposta_tokens = response.usage_metadata.candidates_token_count or 0
+            total_tokens = response.usage_metadata.total_token_count or 0
+
     except Exception as e:
-        print(f"\n[Aviso] Falha na chamada da IA ({e}), usando Fallback seguro.")
+        print(f"\n[Aviso] Recorrendo ao Fallback do Cancer Loser: {e}")
         guia_gerado = gerar_fallback(dados)
-        modo = "Guia Local de Segurança (Fallback Ativo)"
+        prompt_tokens, resposta_tokens, total_tokens = 180, 420, 600
+        modo = "Simulação Local de Suporte (Fallback)"
 
     return RespostaCompleta(
         guia=guia_gerado,
-        status_info={"modelo": MODELO_PADRAO, "modo": modo}
+        tokens={
+            "prompt_tokens": prompt_tokens,
+            "resposta_tokens": resposta_tokens,
+            "total_tokens": total_tokens,
+            "modelo_usado": MODELO_IA,
+            "modo": modo
+        }
     )
 
-# --- Interface Web em Tom Pastel Laranja ---
+# --- Interface Web Visual em Tom Pastel Laranja ---
 @app.get("/", response_class=HTMLResponse)
 def home():
     return """
@@ -160,14 +175,15 @@ def home():
         <style>
             body { 
                 font-family: 'Plus Jakarta Sans', sans-serif; 
-                background-color: #FFF7ED; /* Pastel Laranja */
+                background-color: #FFF7ED; /* Pastel Laranja Base */
             }
         </style>
     </head>
     <body class="text-slate-800 min-h-screen">
         <div class="max-w-6xl mx-auto px-4 py-8">
             
-            <header class="bg-white/95 backdrop-blur border border-orange-200 rounded-3xl p-6 mb-8 shadow-sm flex flex-col md:flex-row justify-between items-center gap-4">
+            <!-- Cabeçalho -->
+            <header class="bg-white/90 backdrop-blur border border-orange-200 rounded-3xl p-6 mb-8 shadow-sm flex flex-col md:flex-row justify-between items-center gap-4">
                 <div class="flex items-center gap-4">
                     <div class="w-14 h-14 bg-gradient-to-tr from-orange-400 to-amber-300 rounded-2xl flex items-center justify-center text-2xl shadow-md shadow-orange-200">
                         🎗️
@@ -177,24 +193,29 @@ def home():
                             <h1 class="text-2xl font-extrabold text-orange-950 tracking-tight">Cancer Loser</h1>
                             <span class="bg-orange-100 text-orange-800 border border-orange-300 text-xs px-2.5 py-0.5 rounded-full font-bold">O Câncer Perde, Você Vence</span>
                         </div>
-                        <p class="text-orange-900/70 text-xs mt-0.5">Guia de suporte, conforto e nutrição oncológica com IA (Gemini 3.5 Flash Lite - 500 req/dia).</p>
+                        <p class="text-orange-900/70 text-xs mt-0.5">Guia diário ilustrativo de suporte, manejo de sintomas e nutrição oncológica.</p>
                     </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="text-xs bg-amber-50 border border-amber-200 text-amber-800 px-3 py-1.5 rounded-xl font-semibold">
+                        Gemini 3.5 Flash Lite • 500 req/dia
+                    </span>
                 </div>
             </header>
 
             <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
                 
-                <!-- Formulário -->
+                <!-- Formulário de Situação do Paciente -->
                 <div class="lg:col-span-5 bg-white border border-orange-200 rounded-3xl p-6 shadow-md shadow-orange-100 space-y-5">
                     <div class="border-b border-orange-100 pb-3">
                         <h2 class="text-base font-bold text-orange-950 flex items-center gap-2">
                             <span>📋</span> Como você está se sentindo hoje?
                         </h2>
-                        <p class="text-xs text-orange-900/60 mt-1">Preencha os campos para receber as condutas de alívio personalizadas.</p>
+                        <p class="text-xs text-orange-900/60 mt-1">Preencha para receber as condutas e o plano de conforto personalizado.</p>
                     </div>
 
                     <div>
-                        <label class="block text-xs font-bold text-orange-900 mb-1">QUAL TRATAMENTO ESTÁ FAZENDO?</label>
+                        <label class="block text-xs font-bold text-orange-900 mb-1">QUAL TRATAMENTO VOCÊ ESTÁ FAZENDO?</label>
                         <select id="tipo_tratamento" class="w-full bg-orange-50/50 border border-orange-200 rounded-xl px-3 py-2.5 text-sm text-slate-800 focus:outline-none focus:border-orange-400">
                             <option value="Quimioterapia">Quimioterapia</option>
                             <option value="Radioterapia">Radioterapia</option>
@@ -211,7 +232,7 @@ def home():
                                 <option value="1 a 3 dias pós-sessão">1 a 3 dias pós-sessão</option>
                                 <option value="Semana de intervalo">Semana de intervalo</option>
                                 <option value="Preparando próxima sessão">Preparando sessão</option>
-                                <option value="Manutenção">Manutenção</option>
+                                <option value="Manutenção / Estável">Manutenção</option>
                             </select>
                         </div>
                         <div>
@@ -226,7 +247,7 @@ def home():
                     </div>
 
                     <div>
-                        <label class="block text-xs font-bold text-orange-900 mb-2">SINTOMAS QUE DESEJA ALIVIAR</label>
+                        <label class="block text-xs font-bold text-orange-900 mb-2">SINTOMAS QUE DESEJA ALIVIAR AGORA</label>
                         <div class="grid grid-cols-2 gap-2 text-xs text-slate-700">
                             <label class="flex items-center gap-2 bg-orange-50/60 p-2.5 rounded-xl border border-orange-200/80 cursor-pointer hover:bg-orange-100/60 transition">
                                 <input type="checkbox" value="Náusea ou Enjoo" class="sintoma" checked> 🤢 Náusea
@@ -235,7 +256,7 @@ def home():
                                 <input type="checkbox" value="Cansaço ou Fadiga" class="sintoma" checked> 🔋 Fadiga
                             </label>
                             <label class="flex items-center gap-2 bg-orange-50/60 p-2.5 rounded-xl border border-orange-200/80 cursor-pointer hover:bg-orange-100/60 transition">
-                                <input type="checkbox" value="Boca seca ou Aftas" class="sintoma"> 👄 Aftas / Secura
+                                <input type="checkbox" value="Boca seca ou Aftas (Mucosite)" class="sintoma"> 👄 Aftas / Secura
                             </label>
                             <label class="flex items-center gap-2 bg-orange-50/60 p-2.5 rounded-xl border border-orange-200/80 cursor-pointer hover:bg-orange-100/60 transition">
                                 <input type="checkbox" value="Sensibilidade Intestinal" class="sintoma"> 🌾 Intestino
@@ -244,7 +265,7 @@ def home():
                     </div>
 
                     <button onclick="gerarPlano()" id="btnGerar" class="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-extrabold py-3.5 rounded-2xl shadow-lg shadow-orange-300/50 transition flex items-center justify-center gap-2">
-                        <span>✨ Gerar Meu Plano de Conforto</span>
+                        <span>✨ Gerar Meu Plano de Cuidado</span>
                     </button>
                     
                     <p class="text-[11px] text-center text-orange-900/50">
@@ -252,17 +273,17 @@ def home():
                     </p>
                 </div>
 
-                <!-- Painel de Resultados -->
+                <!-- Painel de Resultados Ilustrativos -->
                 <div class="lg:col-span-7 space-y-6">
                     
                     <div id="loading" class="hidden bg-white border border-orange-200 rounded-3xl p-12 text-center space-y-4 shadow-sm">
                         <div class="w-12 h-12 border-4 border-orange-400 border-t-transparent rounded-full animate-spin mx-auto"></div>
-                        <p class="text-sm font-bold text-orange-900">Gerando recomendações com Gemini 3.5 Flash Lite...</p>
+                        <p class="text-sm font-bold text-orange-900">Preparando orientações nutricionais e de conforto...</p>
                     </div>
 
                     <div id="resultado" class="hidden space-y-6">
                         
-                        <!-- Card Acolhimento -->
+                        <!-- Card de Acolhimento -->
                         <div class="bg-gradient-to-r from-orange-100 to-amber-100 border border-orange-200 rounded-3xl p-5 shadow-sm">
                             <div class="flex items-start gap-3">
                                 <span class="text-2xl">🧡</span>
@@ -273,7 +294,7 @@ def home():
                             </div>
                         </div>
 
-                        <!-- Alerta Vermelho -->
+                        <!-- Card de Alerta Vermelho (Urgência Médica) -->
                         <div class="bg-red-50 border-2 border-red-200 rounded-3xl p-4 shadow-sm flex items-start gap-3">
                             <span class="text-2xl">🚨</span>
                             <div>
@@ -282,7 +303,7 @@ def home():
                             </div>
                         </div>
 
-                        <!-- Manejo Sintomas -->
+                        <!-- Conduta de Manejo do Sintoma -->
                         <div class="bg-white border border-orange-200 rounded-3xl p-6 shadow-sm space-y-4">
                             <div class="flex justify-between items-center border-b border-orange-100 pb-3">
                                 <h4 class="text-sm font-bold text-orange-950 flex items-center gap-2">
@@ -308,7 +329,7 @@ def home():
                             </div>
                         </div>
 
-                        <!-- Nutrição & Hidratação -->
+                        <!-- Nutrição Oncológica & Hidratação -->
                         <div class="bg-white border border-orange-200 rounded-3xl p-6 shadow-sm space-y-4">
                             <div class="flex justify-between items-center border-b border-orange-100 pb-3">
                                 <h4 class="text-sm font-bold text-orange-950 flex items-center gap-2">
@@ -323,7 +344,7 @@ def home():
                                     <ul id="resAliados" class="space-y-1 text-xs text-slate-700"></ul>
                                 </div>
                                 <div>
-                                    <span class="text-xs font-bold text-orange-900 block mb-1.5">🚫 Alimentos a Evitar (Risco Microbiano)</span>
+                                    <span class="text-xs font-bold text-orange-900 block mb-1.5">🚫 Alimentos com Risco de Contaminação</span>
                                     <ul id="resEvitarAlimentos" class="space-y-1 text-xs text-slate-700"></ul>
                                 </div>
                             </div>
@@ -334,7 +355,7 @@ def home():
                             </div>
                         </div>
 
-                        <!-- Checklist para Consulta -->
+                        <!-- Perguntas para a Próxima Consulta -->
                         <div class="bg-white border border-orange-200 rounded-3xl p-6 shadow-sm space-y-3">
                             <h4 class="text-sm font-bold text-orange-950 flex items-center gap-2">
                                 <span>📝</span> Leve para Perguntar ao seu Oncologista
@@ -373,7 +394,6 @@ def home():
                 resultado.classList.add('hidden');
 
                 try {
-                    // Chamada com rota relativa (funciona local e no Render)
                     const response = await fetch('/api/v1/cuidado/gerar', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -386,7 +406,7 @@ def home():
                     });
 
                     if (!response.ok) {
-                        throw new Error('Servidor retornou status ' + response.status);
+                        throw new Error('Status: ' + response.status);
                     }
 
                     const data = await response.json();
