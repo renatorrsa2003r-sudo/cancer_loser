@@ -10,7 +10,7 @@ import uvicorn
 
 app = FastAPI(
     title="Cancer Loser - Assistente de Cuidado e Apoio Oncológico",
-    version="1.0.0"
+    version="1.1.0"
 )
 
 # --- Modelo Oficial de Alta Cota (500 requisições/dia) ---
@@ -51,64 +51,64 @@ class GuiaCuidadoOncologico(BaseModel):
 class DadosEntrada(BaseModel):
     tipo_tratamento: str
     fase_ciclo: str
-    sintomas_atuais: List[str]
     apetite_nivel: str
+    sintomas_descritos: str
 
 class RespostaCompleta(BaseModel):
     guia: GuiaCuidadoOncologico
     tokens: Dict[str, Any]
 
-# --- Fallback Local Seguro ---
+# --- Fallback Local Inteligente ---
 def gerar_fallback(dados: DadosEntrada) -> GuiaCuidadoOncologico:
-    sintomas_str = ", ".join(dados.sintomas_atuais) if dados.sintomas_atuais else "Fadiga e Náusea leve"
+    sintoma_resumo = dados.sintomas_descritos.strip() if dados.sintomas_descritos.strip() else "Fadiga, Náusea leve e Sensibilidade geral"
     return GuiaCuidadoOncologico(
-        mensagem_acolhimento="Você é mais forte do que imagina. Cada etapa cumprida é uma vitória contra o câncer.",
+        mensagem_acolhimento="Você é mais forte do que imagina. Cada etapa superada aproxima você da sua recuperação.",
         sinal_alerta_urgencia="FEBRE (≥ 37,8°C), calafrios intensos, sangramentos espontâneos ou falta de ar exigem ida imediata ao pronto-atendimento oncológico.",
         opiniao_objetiva=OpiniaoObjetiva(
-            classificacao_momento=f"Quadro de {dados.tipo_tratamento} na fase de {dados.fase_ciclo}.",
-            parecer_direto="O quadro relatado é típico de sobrecarga pós-terapêutica. A prioridade absoluta agora não é comer grandes volumes, mas sim evitar desidratação e fracionar o aporte calórico para preservar sua imunidade.",
-            nivel_cuidado="Atenção Moderada • Suporte Contínuo"
+            classificacao_momento=f"Quadro de {dados.tipo_tratamento} na fase: {dados.fase_ciclo}.",
+            parecer_direto="Os relatos indicam reações comuns ao protocolo oncológico. O foco prioritário deve ser o alívio sintomático dos desconfortos descritos, manutenção rigorosa da hidratação e proteção da imunidade celular.",
+            nivel_cuidado="Cuidado Ativo • Suporte Contínuo"
         ),
         manejo_sintomas=ManejoSintoma(
-            sintoma_foco=sintomas_str,
+            sintoma_foco=sintoma_resumo[:80] + ("..." if len(sintoma_resumo) > 80 else ""),
             o_que_fazer_agora=[
-                "Fracione as refeições em pequenas porções a cada 2 a 3 horas.",
-                "Prefira alimentos em temperatura ambiente ou frios para diminuir odores fortes.",
-                "Faça pausas curtas de descanso sem deitar totalmente logo após comer."
+                "Fracione as refeições em pequenas porções a cada 2 a 3 horas sem forçar grandes volumes.",
+                "Prefira alimentos em temperatura ambiente ou frios para minimizar cheiros fortes.",
+                "Faça pausas curtas de descanso em posição semi-sentada para evitar refluxo e náuseas."
             ],
             o_que_evitar=[
-                "Alimentos muito gordurosos, frituras, excesso de condimentos e odores intensos.",
-                "Ficar longos períodos em jejum absoluto."
+                "Alimentos gordurosos, frituras, excesso de condimentos e longos períodos em jejum.",
+                "Esforço físico intenso durante picos de desconforto ou fadiga."
             ],
-            dica_de_conforto="Chupitar cubos de gelo com raspas de limão ou água de coco ajuda na hidratação e reduz o gosto metálico na boca."
+            dica_de_conforto="Gelo picado com raspas de limão ou água de coco bem gelada ajuda a hidratar a mucosa e diminuir o gosto amargo/metálico."
         ),
         nutricao_e_hidratacao=NutricaoOncologica(
             fase_atual=f"{dados.tipo_tratamento} ({dados.fase_ciclo})",
             alimentos_aliados=[
-                "Caldo caseiro de legumes",
-                "Ovo cozido ou mexido macio",
-                "Purê de mandioquinha ou batata",
-                "Frutas ricas em água (melancia, melão)"
+                "Caldo caseiro nutritivo de legumes e frango desfiado",
+                "Ovos cozidos bem passados ou mexidos suaves",
+                "Purê de batata, cenoura ou mandioquinha",
+                "Frutas ricas em água (melancia, melão descascados na hora)"
             ],
             alimentos_a_evitar=[
-                "Carnes cruas ou malpassadas (risco microbiológico)",
-                "Frutas com casca não higienizada rigorosamente",
-                "Leite e derivados não pasteurizados"
+                "Carnes cruas, sushi ou malpassadas (risco microbiológico)",
+                "Vegetais crus não higienizados rigorosamente com solução clorada",
+                "Laticínios e queijos não pasteurizados"
             ],
             meta_hidratacao_ml=2200,
-            dica_paladar_ou_nausea="Use talheres plásticos ou de madeira se sentir gosto metálico durante as refeições."
+            dica_paladar_ou_nausea="Caso sinta alteração metálica no paladar, utilize talheres de madeira ou silicone nas refeições."
         ),
         checklist_proxima_consulta=[
             PerguntaConsulta(
-                duvida_para_oncologista="A intensidade dos sintomas que senti nesta semana está dentro do esperado?",
-                por_que_perguntar="Permite ao médico ajustar a medicação antiemética ou protetora."
+                duvida_para_oncologista="Os desconfortos que relatei nesta semana exigem ajuste em antieméticos ou protetores gástricos?",
+                por_que_perguntar="Garante que seu protocolo de medicamentos de suporte seja ajustado à sua resposta clínica."
             ),
             PerguntaConsulta(
-                duvida_para_oncologista="Posso tomar algum suplemento alimentar específico para complementar minhas calorias?",
-                por_que_perguntar="Evita desnutrição e perda de massa muscular durante as sessões."
+                duvida_para_oncologista="Existe recomendação de suplementação proteica específica para meu peso atual?",
+                por_que_perguntar="Ajuda a prevenir perda de massa magra e fraqueza muscular."
             )
         ],
-        pratica_bem_estar_mental="Respiração diafragmática 4-4-4: inspire em 4 segundos, segure 4 segundos e solte em 4 segundos. Respeite os limites do seu corpo hoje."
+        pratica_bem_estar_mental="Técnica de Respiração 4-4-4: inspire devagar em 4 segundos, retenha o ar por 4 segundos e expire suavemente em 4 segundos. Respeite o ritmo do seu corpo."
     )
 
 # --- Endpoint de Geração ---
@@ -124,20 +124,21 @@ def gerar_orientacao(dados: DadosEntrada):
         client = genai.Client(api_key=chave) if chave else genai.Client()
 
         prompt = f"""
-        Você é um Assistente Especializado em Cuidados e Conforto Oncológico Integrativo.
-        Elabore um plano de suporte acolhedor, altamente didático e baseado em evidências médicas para um paciente oncológico:
+        Você é um Assistente Especialista em Oncologia Clínica Integrativa, Cuidados de Suporte e Manejo de Sintomas.
+        Analise o relato do paciente e elabore um plano acolhedor, altamente didático, objetivo e fundamentado em evidências médicas:
 
-        - Tratamento: {dados.tipo_tratamento}
-        - Momento: {dados.fase_ciclo}
-        - Sintomas relatados: {', '.join(dados.sintomas_atuais) if dados.sintomas_atuais else 'Recuperação e bem-estar'}
-        - Apetite: {dados.apetite_nivel}
+        - Tipo de Tratamento: {dados.tipo_tratamento}
+        - Momento / Fase Atual: {dados.fase_ciclo}
+        - Padrão de Apetite / Deglutição: {dados.apetite_nivel}
+        - Descrição Livre dos Sintomas pelo Paciente:
+        "{dados.sintomas_descritos if dados.sintomas_descritos.strip() else 'Nenhum sintoma grave descrito, focado em suporte geral e recuperação.'}"
 
-        DIRETRIZES MÉDICAS MANDATÓRIAS:
-        1. Gere uma 'opiniao_objetiva' clínica, clara, realista e sem rodeios sobre a prioridade do momento.
-        2. Destaque sempre o alerta de febre (≥ 37,8°C) como urgência médica.
-        3. Dê orientações práticas de nutrição segura (evitar contaminação microbiana/neutropenia).
-        4. Forneça dicas para alterações sensoriais (gosto metálico, mucosite, enjoo).
-        5. Monte perguntas relevantes para o paciente levar ao oncologista.
+        DIRETRIZES MÉDICAS OBRIGATÓRIAS:
+        1. 'opiniao_objetiva': emita uma avaliação clínica concisa, direta e realista sobre o momento e a prioridade imediata do paciente.
+        2. 'manejo_sintomas': aborde especificamente os sintomas descritos no texto livre, fornecendo passos práticos imediatos e o que evitar.
+        3. 'sinal_alerta_urgencia': reforce sempre febre (≥ 37,8°C), calafrios, sangramentos ou falta de ar como emergência oncológica.
+        4. 'nutricao_e_hidratacao': indique alimentos confortáveis, seguros (risco bacteriano/neutropenia) e estratégia contra disgeusia/gosto ruim.
+        5. 'checklist_proxima_consulta': crie 2 a 3 perguntas essenciais para levar ao oncologista baseadas no que o paciente relatou.
         """
 
         response = client.models.generate_content(
@@ -156,9 +157,9 @@ def gerar_orientacao(dados: DadosEntrada):
             total_tokens = response.usage_metadata.total_token_count or 0
 
     except Exception as e:
-        print(f"\n[Aviso] Recorrendo ao Fallback do Cancer Loser: {e}")
+        print(f"\n[Aviso] Usando Fallback de segurança: {e}")
         guia_gerado = gerar_fallback(dados)
-        prompt_tokens, resposta_tokens, total_tokens = 180, 420, 600
+        prompt_tokens, resposta_tokens, total_tokens = 210, 440, 650
         modo = "Simulação Local de Suporte (Fallback)"
 
     return RespostaCompleta(
@@ -172,7 +173,7 @@ def gerar_orientacao(dados: DadosEntrada):
         }
     )
 
-# --- Interface Web Visual em Tom Pastel Laranja ---
+# --- Interface Web em Tom Pastel Laranja ---
 @app.get("/", response_class=HTMLResponse)
 def home():
     return """
@@ -187,7 +188,7 @@ def home():
         <style>
             body { 
                 font-family: 'Plus Jakarta Sans', sans-serif; 
-                background-color: #FFF7ED; /* Pastel Laranja Base */
+                background-color: #FFF7ED; /* Pastel Laranja */
             }
         </style>
     </head>
@@ -195,7 +196,7 @@ def home():
         <div class="max-w-6xl mx-auto px-4 py-8">
             
             <!-- Cabeçalho -->
-            <header class="bg-white/90 backdrop-blur border border-orange-200 rounded-3xl p-6 mb-8 shadow-sm flex flex-col md:flex-row justify-between items-center gap-4">
+            <header class="bg-white/95 backdrop-blur border border-orange-200 rounded-3xl p-6 mb-8 shadow-sm flex flex-col md:flex-row justify-between items-center gap-4">
                 <div class="flex items-center gap-4">
                     <div class="w-14 h-14 bg-gradient-to-tr from-orange-400 to-amber-300 rounded-2xl flex items-center justify-center text-2xl shadow-md shadow-orange-200">
                         🎗️
@@ -205,7 +206,7 @@ def home():
                             <h1 class="text-2xl font-extrabold text-orange-950 tracking-tight">Cancer Loser</h1>
                             <span class="bg-orange-100 text-orange-800 border border-orange-300 text-xs px-2.5 py-0.5 rounded-full font-bold">O Câncer Perde, Você Vence</span>
                         </div>
-                        <p class="text-orange-900/70 text-xs mt-0.5">Guia diário ilustrativo de suporte, manejo de sintomas e nutrição oncológica.</p>
+                        <p class="text-orange-900/70 text-xs mt-0.5">Plataforma ampliada de suporte, conforto, manejo de sintomas e nutrição oncológica.</p>
                     </div>
                 </div>
                 <div class="flex items-center gap-2">
@@ -221,58 +222,74 @@ def home():
                 <div class="lg:col-span-5 bg-white border border-orange-200 rounded-3xl p-6 shadow-md shadow-orange-100 space-y-5">
                     <div class="border-b border-orange-100 pb-3">
                         <h2 class="text-base font-bold text-orange-950 flex items-center gap-2">
-                            <span>📋</span> Como você está se sentindo hoje?
+                            <span>📋</span> Triagem do Seu Momento
                         </h2>
-                        <p class="text-xs text-orange-900/60 mt-1">Preencha para receber as condutas e o plano de conforto personalizado.</p>
+                        <p class="text-xs text-orange-900/60 mt-1">Preencha as opções clínicas e descreva como está o seu corpo hoje.</p>
                     </div>
 
+                    <!-- Tratamento Ampliado -->
                     <div>
-                        <label class="block text-xs font-bold text-orange-900 mb-1">QUAL TRATAMENTO VOCÊ ESTÁ FAZENDO?</label>
-                        <select id="tipo_tratamento" class="w-full bg-orange-50/50 border border-orange-200 rounded-xl px-3 py-2.5 text-sm text-slate-800 focus:outline-none focus:border-orange-400">
-                            <option value="Quimioterapia">Quimioterapia</option>
-                            <option value="Radioterapia">Radioterapia</option>
-                            <option value="Imunoterapia / Terapia Alvo">Imunoterapia / Terapia Alvo</option>
-                            <option value="Pós-Cirúrgico / Recuperação">Pós-Cirúrgico / Recuperação</option>
-                            <option value="Acompanhamento Preventivo">Acompanhamento Preventivo</option>
+                        <label class="block text-xs font-bold text-orange-900 mb-1">TIPO DE TRATAMENTO ONCOLÓGICO</label>
+                        <select id="tipo_tratamento" class="w-full bg-orange-50/50 border border-orange-200 rounded-xl px-3 py-2.5 text-xs font-medium text-slate-800 focus:outline-none focus:border-orange-400">
+                            <option value="Quimioterapia (Infusional ou Oral)">Quimioterapia (Infusional ou Oral)</option>
+                            <option value="Radioterapia (Externa ou Braquiterapia)">Radioterapia (Externa ou Braquiterapia)</option>
+                            <option value="Imunoterapia">Imunoterapia</option>
+                            <option value="Terapia Alvo / Inibidores Moleculares">Terapia Alvo / Inibidores Moleculares</option>
+                            <option value="Hormonioterapia / Bloqueio Hormonal">Hormonioterapia / Bloqueio Hormonal</option>
+                            <option value="Transplante de Medula Óssea (TMO) / Terapia Celular">Transplante de Medula Óssea (TMO)</option>
+                            <option value="Pós-Operatório / Ressecção Cirúrgica">Pós-Operatório / Cirurgia Oncológica</option>
+                            <option value="Tratamento Combinado (ex: Quimio + Radio)">Tratamento Combinado (Quimio + Radio)</option>
+                            <option value="Cuidados de Suporte / Controle de Sintomas">Cuidados de Suporte / Controle Sintomático</option>
+                            <option value="Acompanhamento / Sobrevivência (Pós-Tratamento)">Acompanhamento Pós-Tratamento</option>
                         </select>
                     </div>
 
-                    <div class="grid grid-cols-2 gap-3">
+                    <!-- Fase e Apetite -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div>
-                            <label class="block text-xs font-bold text-orange-900 mb-1">FASE / MOMENTO</label>
+                            <label class="block text-xs font-bold text-orange-900 mb-1">MOMENTO / CICLO</label>
                             <select id="fase_ciclo" class="w-full bg-orange-50/50 border border-orange-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-orange-400">
-                                <option value="1 a 3 dias pós-sessão">1 a 3 dias pós-sessão</option>
-                                <option value="Semana de intervalo">Semana de intervalo</option>
-                                <option value="Preparando próxima sessão">Preparando sessão</option>
-                                <option value="Manutenção / Estável">Manutenção</option>
+                                <option value="1 a 3 dias pós-sessão (Pico Agudo)">1 a 3 dias pós-sessão (Pico Agudo)</option>
+                                <option value="Fase de Nadir / Queda de Imunidade (D7 a D14)">Nadir / Imunidade Baixa (D7 a D14)</option>
+                                <option value="Semana de Intervalo / Recuperação">Semana de Intervalo</option>
+                                <option value="Preparando próxima sessão (Ansiedade)">Preparando Próxima Sessão</option>
+                                <option value="Uso Contínuo Diário / Manutenção">Uso Contínuo / Manutenção</option>
+                                <option value="Recém-operado (Recuperação Cirúrgica)">Pós-Cirúrgico Recente</option>
+                                <option value="Diagnóstico Recente / Pré-Início">Diagnóstico Recente</option>
                             </select>
                         </div>
                         <div>
-                            <label class="block text-xs font-bold text-orange-900 mb-1">NÍVEL DO APETITE</label>
+                            <label class="block text-xs font-bold text-orange-900 mb-1">APETITE / DEGLUTIÇÃO</label>
                             <select id="apetite_nivel" class="w-full bg-orange-50/50 border border-orange-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-orange-400">
-                                <option value="Normal">Normal</option>
-                                <option value="Reduzido / Pouco apetite">Reduzido</option>
-                                <option value="Com enjoo ou náusea">Com enjoo</option>
-                                <option value="Gosto metálico na boca">Gosto metálico</option>
+                                <option value="Normal / Estável">Normal / Estável</option>
+                                <option value="Muito reduzido / Sem fome">Sem Fome / Reduzido</option>
+                                <option value="Com náusea ou enjoo frequente">Com Náusea / Enjoo</option>
+                                <option value="Gosto metálico ou amargo na boca">Gosto Metálico na Boca</option>
+                                <option value="Aversão a cheiros de comida">Aversão a Cheiros</option>
+                                <option value="Boca seca ou dor ao engolir (Mucosite)">Boca Seca / Dor ao Engolir</option>
                             </select>
                         </div>
                     </div>
 
+                    <!-- Área de Texto Livre para Sintomas -->
                     <div>
-                        <label class="block text-xs font-bold text-orange-900 mb-2">SINTOMAS QUE DESEJA ALIVIAR AGORA</label>
-                        <div class="grid grid-cols-2 gap-2 text-xs text-slate-700">
-                            <label class="flex items-center gap-2 bg-orange-50/60 p-2.5 rounded-xl border border-orange-200/80 cursor-pointer hover:bg-orange-100/60 transition">
-                                <input type="checkbox" value="Náusea ou Enjoo" class="sintoma" checked> 🤢 Náusea
-                            </label>
-                            <label class="flex items-center gap-2 bg-orange-50/60 p-2.5 rounded-xl border border-orange-200/80 cursor-pointer hover:bg-orange-100/60 transition">
-                                <input type="checkbox" value="Cansaço ou Fadiga" class="sintoma" checked> 🔋 Fadiga
-                            </label>
-                            <label class="flex items-center gap-2 bg-orange-50/60 p-2.5 rounded-xl border border-orange-200/80 cursor-pointer hover:bg-orange-100/60 transition">
-                                <input type="checkbox" value="Boca seca ou Aftas (Mucosite)" class="sintoma"> 👄 Aftas / Secura
-                            </label>
-                            <label class="flex items-center gap-2 bg-orange-50/60 p-2.5 rounded-xl border border-orange-200/80 cursor-pointer hover:bg-orange-100/60 transition">
-                                <input type="checkbox" value="Sensibilidade Intestinal" class="sintoma"> 🌾 Intestino
-                            </label>
+                        <div class="flex justify-between items-center mb-1.5">
+                            <label class="block text-xs font-bold text-orange-900">QUAIS SINTOMAS DESEJA MELHORAR AGORA?</label>
+                            <span class="text-[10px] text-orange-800/60">Escreva livremente</span>
+                        </div>
+                        <textarea id="sintomas_descritos" rows="4" placeholder="Descreva com suas palavras tudo o que está sentindo (ex: sinto muita náusea pela manhã, aftas doloridas na bochecha, cansaço pesado nas pernas e pontadas nas mãos)..." class="w-full bg-orange-50/50 border border-orange-200 rounded-2xl p-3 text-xs text-slate-800 placeholder:text-orange-900/40 focus:outline-none focus:border-orange-400 resize-none"></textarea>
+                        
+                        <!-- Atalhos Rápidos para Inserir Sintomas Comuns no Texto -->
+                        <div class="mt-2">
+                            <span class="text-[10px] font-bold text-orange-900/70 block mb-1">Atalhos rápidos para adicionar ao texto:</span>
+                            <div class="flex flex-wrap gap-1.5 text-[11px]">
+                                <button type="button" onclick="adicionarSintoma('Náusea e enjoo')" class="bg-orange-100 hover:bg-orange-200 text-orange-900 px-2 py-0.5 rounded-lg border border-orange-200 transition">+ 🤢 Náusea</button>
+                                <button type="button" onclick="adicionarSintoma('Fadiga extrema e fraqueza')" class="bg-orange-100 hover:bg-orange-200 text-orange-900 px-2 py-0.5 rounded-lg border border-orange-200 transition">+ 🔋 Fadiga</button>
+                                <button type="button" onclick="adicionarSintoma('Aftas doloridas e boca seca (Mucosite)')" class="bg-orange-100 hover:bg-orange-200 text-orange-900 px-2 py-0.5 rounded-lg border border-orange-200 transition">+ 👄 Aftas</button>
+                                <button type="button" onclick="adicionarSintoma('Formigamento nas mãos e pés (Neuropatia)')" class="bg-orange-100 hover:bg-orange-200 text-orange-900 px-2 py-0.5 rounded-lg border border-orange-200 transition">+ ⚡ Neuropatia</button>
+                                <button type="button" onclick="adicionarSintoma('Diarreia frequente')" class="bg-orange-100 hover:bg-orange-200 text-orange-900 px-2 py-0.5 rounded-lg border border-orange-200 transition">+ 💧 Diarreia</button>
+                                <button type="button" onclick="adicionarSintoma('Constipação / Intestino preso')" class="bg-orange-100 hover:bg-orange-200 text-orange-900 px-2 py-0.5 rounded-lg border border-orange-200 transition">+ 🌾 Intestino Preso</button>
+                            </div>
                         </div>
                     </div>
 
@@ -290,7 +307,7 @@ def home():
                     
                     <div id="loading" class="hidden bg-white border border-orange-200 rounded-3xl p-12 text-center space-y-4 shadow-sm">
                         <div class="w-12 h-12 border-4 border-orange-400 border-t-transparent rounded-full animate-spin mx-auto"></div>
-                        <p class="text-sm font-bold text-orange-900">Preparando orientações nutricionais e de conforto...</p>
+                        <p class="text-sm font-bold text-orange-900">Analisando seus sintomas e formulando recomendações personalizadas...</p>
                     </div>
 
                     <div id="resultado" class="hidden space-y-6">
@@ -306,7 +323,7 @@ def home():
                             </div>
                         </div>
 
-                        <!-- Card de Alerta Vermelho (Urgência Médica) -->
+                        <!-- Card de Alerta Vermelho -->
                         <div class="bg-red-50 border-2 border-red-200 rounded-3xl p-4 shadow-sm flex items-start gap-3">
                             <span class="text-2xl">🚨</span>
                             <div>
@@ -315,7 +332,7 @@ def home():
                             </div>
                         </div>
 
-                        <!-- Card de Opinião Objetiva / Parecer Clínico -->
+                        <!-- Opinião Clínica Objetiva -->
                         <div class="bg-white border-2 border-amber-300 rounded-3xl p-6 shadow-sm space-y-3 bg-gradient-to-b from-white to-amber-50/30">
                             <div class="flex justify-between items-center border-b border-amber-100 pb-2.5">
                                 <h4 class="text-sm font-bold text-orange-950 flex items-center gap-2">
@@ -329,11 +346,11 @@ def home():
                             </div>
                         </div>
 
-                        <!-- Conduta de Manejo do Sintoma -->
+                        <!-- Manejo Direcionado dos Sintomas -->
                         <div class="bg-white border border-orange-200 rounded-3xl p-6 shadow-sm space-y-4">
                             <div class="flex justify-between items-center border-b border-orange-100 pb-3">
                                 <h4 class="text-sm font-bold text-orange-950 flex items-center gap-2">
-                                    <span>🩺</span> O que Fazer para Conforto: <span id="resFoco" class="text-orange-600"></span>
+                                    <span>🩺</span> Alívio para os Sintomas: <span id="resFoco" class="text-orange-600 font-semibold"></span>
                                 </h4>
                                 <span class="bg-orange-100 text-orange-800 text-[10px] font-extrabold px-2.5 py-1 rounded-full">Passo a Passo</span>
                             </div>
@@ -350,12 +367,12 @@ def home():
                             </div>
 
                             <div class="bg-orange-50 border border-orange-200 rounded-2xl p-3.5">
-                                <span class="text-[11px] font-bold text-orange-900 block mb-0.5">💡 Dica Prática de Alívio:</span>
+                                <span class="text-[11px] font-bold text-orange-900 block mb-0.5">💡 Dica Prática de Conforto:</span>
                                 <p id="resDicaConforto" class="text-xs text-orange-950/80"></p>
                             </div>
                         </div>
 
-                        <!-- Nutrição Oncológica & Hidratação -->
+                        <!-- Nutrição & Hidratação -->
                         <div class="bg-white border border-orange-200 rounded-3xl p-6 shadow-sm space-y-4">
                             <div class="flex justify-between items-center border-b border-orange-100 pb-3">
                                 <h4 class="text-sm font-bold text-orange-950 flex items-center gap-2">
@@ -370,18 +387,18 @@ def home():
                                     <ul id="resAliados" class="space-y-1 text-xs text-slate-700"></ul>
                                 </div>
                                 <div>
-                                    <span class="text-xs font-bold text-orange-900 block mb-1.5">🚫 Alimentos com Risco de Contaminação</span>
+                                    <span class="text-xs font-bold text-orange-900 block mb-1.5">🚫 Alimentos a Evitar (Risco Microbiano)</span>
                                     <ul id="resEvitarAlimentos" class="space-y-1 text-xs text-slate-700"></ul>
                                 </div>
                             </div>
 
                             <div class="bg-amber-50/70 border border-amber-200 rounded-2xl p-3.5">
-                                <span class="text-[11px] font-bold text-amber-900 block mb-0.5">👅 Para o Paladar / Gosto Metálico:</span>
+                                <span class="text-[11px] font-bold text-amber-900 block mb-0.5">👅 Para o Paladar / Sensibilidade:</span>
                                 <p id="resDicaPaladar" class="text-xs text-amber-950/80"></p>
                             </div>
                         </div>
 
-                        <!-- Perguntas para a Próxima Consulta -->
+                        <!-- Checklist para Consulta -->
                         <div class="bg-white border border-orange-200 rounded-3xl p-6 shadow-sm space-y-3">
                             <h4 class="text-sm font-bold text-orange-950 flex items-center gap-2">
                                 <span>📝</span> Leve para Perguntar ao seu Oncologista
@@ -404,6 +421,16 @@ def home():
         </div>
 
         <script>
+            function adicionarSintoma(sintoma) {
+                const txt = document.getElementById('sintomas_descritos');
+                if (txt.value.trim() === '') {
+                    txt.value = sintoma;
+                } else {
+                    txt.value += ', ' + sintoma;
+                }
+                txt.focus();
+            }
+
             async function gerarPlano() {
                 const btn = document.getElementById('btnGerar');
                 const loading = document.getElementById('loading');
@@ -412,7 +439,7 @@ def home():
                 const tratamento = document.getElementById('tipo_tratamento').value;
                 const fase = document.getElementById('fase_ciclo').value;
                 const apetite = document.getElementById('apetite_nivel').value;
-                const sintomas = Array.from(document.querySelectorAll('.sintoma:checked')).map(c => c.value);
+                const sintomas = document.getElementById('sintomas_descritos').value;
 
                 btn.disabled = true;
                 btn.classList.add('opacity-50');
@@ -426,8 +453,8 @@ def home():
                         body: JSON.stringify({
                             tipo_tratamento: tratamento,
                             fase_ciclo: fase,
-                            sintomas_atuais: sintomas,
-                            apetite_nivel: apetite
+                            apetite_nivel: apetite,
+                            sintomas_descritos: sintomas
                         })
                     });
 
@@ -447,7 +474,7 @@ def home():
                     document.getElementById('resClassificacao').innerText = g.opiniao_objetiva.classificacao_momento;
                     document.getElementById('resParecer').innerText = g.opiniao_objetiva.parecer_direto;
 
-                    // Manejo de Sintomas
+                    // Manejo Sintomas
                     document.getElementById('resFoco').innerText = g.manejo_sintomas.sintoma_foco;
                     document.getElementById('resAcoes').innerHTML = g.manejo_sintomas.o_que_fazer_agora.map(a => `<li>• ${a}</li>`).join('');
                     document.getElementById('resEvitar').innerHTML = g.manejo_sintomas.o_que_evitar.map(e => `<li>• ${e}</li>`).join('');
@@ -459,7 +486,7 @@ def home():
                     document.getElementById('resEvitarAlimentos').innerHTML = g.nutricao_e_hidratacao.alimentos_a_evitar.map(ea => `<li>• ${ea}</li>`).join('');
                     document.getElementById('resDicaPaladar').innerText = g.nutricao_e_hidratacao.dica_paladar_ou_nausea;
 
-                    // Checklist da Consulta
+                    // Checklist Consulta
                     document.getElementById('resConsultas').innerHTML = g.checklist_proxima_consulta.map(c => `
                         <div class="bg-orange-50/50 p-3 rounded-2xl border border-orange-200/80">
                             <span class="font-bold text-xs text-orange-950 block">❓ "${c.duvida_para_oncologista}"</span>
