@@ -17,6 +17,11 @@ app = FastAPI(
 MODELO_IA = "gemini-3.5-flash-lite"
 
 # --- Schemas Pydantic Estruturados ---
+class OpiniaoObjetiva(BaseModel):
+    classificacao_momento: str
+    parecer_direto: str
+    nivel_cuidado: str
+
 class ManejoSintoma(BaseModel):
     sintoma_foco: str
     o_que_fazer_agora: List[str]
@@ -37,6 +42,7 @@ class PerguntaConsulta(BaseModel):
 class GuiaCuidadoOncologico(BaseModel):
     mensagem_acolhimento: str
     sinal_alerta_urgencia: str
+    opiniao_objetiva: OpiniaoObjetiva
     manejo_sintomas: ManejoSintoma
     nutricao_e_hidratacao: NutricaoOncologica
     checklist_proxima_consulta: List[PerguntaConsulta]
@@ -52,12 +58,17 @@ class RespostaCompleta(BaseModel):
     guia: GuiaCuidadoOncologico
     tokens: Dict[str, Any]
 
-# --- Fallback Local (Garante funcionamento contínuo) ---
+# --- Fallback Local Seguro ---
 def gerar_fallback(dados: DadosEntrada) -> GuiaCuidadoOncologico:
     sintomas_str = ", ".join(dados.sintomas_atuais) if dados.sintomas_atuais else "Fadiga e Náusea leve"
     return GuiaCuidadoOncologico(
         mensagem_acolhimento="Você é mais forte do que imagina. Cada etapa cumprida é uma vitória contra o câncer.",
         sinal_alerta_urgencia="FEBRE (≥ 37,8°C), calafrios intensos, sangramentos espontâneos ou falta de ar exigem ida imediata ao pronto-atendimento oncológico.",
+        opiniao_objetiva=OpiniaoObjetiva(
+            classificacao_momento=f"Quadro de {dados.tipo_tratamento} na fase de {dados.fase_ciclo}.",
+            parecer_direto="O quadro relatado é típico de sobrecarga pós-terapêutica. A prioridade absoluta agora não é comer grandes volumes, mas sim evitar desidratação e fracionar o aporte calórico para preservar sua imunidade.",
+            nivel_cuidado="Atenção Moderada • Suporte Contínuo"
+        ),
         manejo_sintomas=ManejoSintoma(
             sintoma_foco=sintomas_str,
             o_que_fazer_agora=[
@@ -106,7 +117,7 @@ def gerar_orientacao(dados: DadosEntrada):
     prompt_tokens = 0
     resposta_tokens = 0
     total_tokens = 0
-    modo = f"Ao Vivo (Gemini 3.5 Flash Lite)"
+    modo = "Ao Vivo (Gemini 3.5 Flash Lite)"
 
     try:
         chave = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
@@ -122,10 +133,11 @@ def gerar_orientacao(dados: DadosEntrada):
         - Apetite: {dados.apetite_nivel}
 
         DIRETRIZES MÉDICAS MANDATÓRIAS:
-        1. Destaque sempre o alerta de febre (≥ 37,8°C) como urgência médica.
-        2. Dê orientações práticas de nutrição segura (evitar contaminação microbiana/neutropenia).
-        3. Forneça dicas para alterações sensoriais (gosto metálico, mucosite, enjoo).
-        4. Monte perguntas relevantes para o paciente levar ao oncologista.
+        1. Gere uma 'opiniao_objetiva' clínica, clara, realista e sem rodeios sobre a prioridade do momento.
+        2. Destaque sempre o alerta de febre (≥ 37,8°C) como urgência médica.
+        3. Dê orientações práticas de nutrição segura (evitar contaminação microbiana/neutropenia).
+        4. Forneça dicas para alterações sensoriais (gosto metálico, mucosite, enjoo).
+        5. Monte perguntas relevantes para o paciente levar ao oncologista.
         """
 
         response = client.models.generate_content(
@@ -303,11 +315,25 @@ def home():
                             </div>
                         </div>
 
+                        <!-- Card de Opinião Objetiva / Parecer Clínico -->
+                        <div class="bg-white border-2 border-amber-300 rounded-3xl p-6 shadow-sm space-y-3 bg-gradient-to-b from-white to-amber-50/30">
+                            <div class="flex justify-between items-center border-b border-amber-100 pb-2.5">
+                                <h4 class="text-sm font-bold text-orange-950 flex items-center gap-2">
+                                    <span>🎯</span> Opinião Clínica Objetiva
+                                </h4>
+                                <span id="resNivelCuidado" class="bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-extrabold px-2.5 py-1 rounded-full"></span>
+                            </div>
+                            <div>
+                                <span id="resClassificacao" class="text-xs font-bold text-orange-900 block mb-1"></span>
+                                <p id="resParecer" class="text-xs text-slate-700 leading-relaxed"></p>
+                            </div>
+                        </div>
+
                         <!-- Conduta de Manejo do Sintoma -->
                         <div class="bg-white border border-orange-200 rounded-3xl p-6 shadow-sm space-y-4">
                             <div class="flex justify-between items-center border-b border-orange-100 pb-3">
                                 <h4 class="text-sm font-bold text-orange-950 flex items-center gap-2">
-                                    <span>🎯</span> O que Fazer para Conforto: <span id="resFoco" class="text-orange-600"></span>
+                                    <span>🩺</span> O que Fazer para Conforto: <span id="resFoco" class="text-orange-600"></span>
                                 </h4>
                                 <span class="bg-orange-100 text-orange-800 text-[10px] font-extrabold px-2.5 py-1 rounded-full">Passo a Passo</span>
                             </div>
@@ -412,19 +438,28 @@ def home():
                     const data = await response.json();
                     const g = data.guia;
 
+                    // Acolhimento & Alerta
                     document.getElementById('resAcolhimento').innerText = `"${g.mensagem_acolhimento}"`;
                     document.getElementById('resAlerta').innerText = g.sinal_alerta_urgencia;
-                    document.getElementById('resFoco').innerText = g.manejo_sintomas.sintoma_foco;
 
+                    // Opinião Objetiva
+                    document.getElementById('resNivelCuidado').innerText = g.opiniao_objetiva.nivel_cuidado;
+                    document.getElementById('resClassificacao').innerText = g.opiniao_objetiva.classificacao_momento;
+                    document.getElementById('resParecer').innerText = g.opiniao_objetiva.parecer_direto;
+
+                    // Manejo de Sintomas
+                    document.getElementById('resFoco').innerText = g.manejo_sintomas.sintoma_foco;
                     document.getElementById('resAcoes').innerHTML = g.manejo_sintomas.o_que_fazer_agora.map(a => `<li>• ${a}</li>`).join('');
                     document.getElementById('resEvitar').innerHTML = g.manejo_sintomas.o_que_evitar.map(e => `<li>• ${e}</li>`).join('');
                     document.getElementById('resDicaConforto').innerText = g.manejo_sintomas.dica_de_conforto;
 
+                    // Nutrição & Hidratação
                     document.getElementById('resMetaHidratacao').innerText = `Meta de Água: ${(g.nutricao_e_hidratacao.meta_hidratacao_ml / 1000).toFixed(1)}L/dia`;
                     document.getElementById('resAliados').innerHTML = g.nutricao_e_hidratacao.alimentos_aliados.map(al => `<li>• ${al}</li>`).join('');
                     document.getElementById('resEvitarAlimentos').innerHTML = g.nutricao_e_hidratacao.alimentos_a_evitar.map(ea => `<li>• ${ea}</li>`).join('');
                     document.getElementById('resDicaPaladar').innerText = g.nutricao_e_hidratacao.dica_paladar_ou_nausea;
 
+                    // Checklist da Consulta
                     document.getElementById('resConsultas').innerHTML = g.checklist_proxima_consulta.map(c => `
                         <div class="bg-orange-50/50 p-3 rounded-2xl border border-orange-200/80">
                             <span class="font-bold text-xs text-orange-950 block">❓ "${c.duvida_para_oncologista}"</span>
@@ -432,6 +467,7 @@ def home():
                         </div>
                     `).join('');
 
+                    // Bem-estar Mental
                     document.getElementById('resMental').innerText = g.pratica_bem_estar_mental;
 
                     resultado.classList.remove('hidden');
